@@ -14,7 +14,7 @@
 #include <sstream>
 #include <regex>
 
-#include "pb/numa.pb.pb.h"
+#include "pb/numa.pb.h"
 
 // minl = UINT_MAX
 // find minl
