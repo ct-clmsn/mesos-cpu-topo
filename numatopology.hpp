@@ -55,6 +55,9 @@ struct NumaDescriber {
         latencies(NumaDescriber::getNodeDistances(numaidstr)),
         interconnect(NumaDescriber::getNodeInterconnect(numaidstr)),
         memory(NumaDescriber::getNodeDistances(numaidstr)) {
+
+      for(auto numanode : 
+      auto cpuinfo = 
     }
 
   static std::uint32_t getUint32FromStdString(
@@ -231,10 +234,7 @@ struct NumaDescriber {
         std::vector<CpuInfo::kv_tuple_vector> res;
         std::vector<uint8_t> cpusonline;
 
-        CpuDescription() {
-          CpuInfo::cpuinfo_online(cpusonline);
-          CpuInfo::cpuinfo_summary(res);
-
+        CpuDescription(const std::vector<CpuInfo::kv_tuple_vector>& res) {
           for(auto kvvec : res) {
             for(auto kv : kvvec) {
               if( std::get<0>(kv) == "processor") {
@@ -252,9 +252,6 @@ struct NumaDescriber {
               else if( std::get<0>(kv) == "cpu family") {
                 cpu_family = std::stoi(std::get<1>(kv));
               }
-              else if( std::get<0>(kv) == "cache size") {
-                l1cache = std::stoi(std::get<1>(kv));
-              }
               else if( std::get<0>(kv) == "cpu MHz") {
                 mhz = std::stof(std::get<1>(kv));
               }
@@ -270,22 +267,61 @@ struct NumaDescriber {
               else if( std::get<0>(kv) == "fpu") {
                 fpu = std::stoi(std::get<1>(kv)) ? true : false;
               }
-             
               
-              std::cout << "*" << std::get<0>(kv) << '\t' << std::get<1>(kv) << std::endl;
             }
           }
 
-          "/sys/devices/system/node/node0/cpu0/cache/index0/size"
+      }
+
+      static void getCacheSizes(
+        const std::string &numanode,
+        const std::string &cpu,
+        std::vector<std::string> &cacheSizes) {
+
+        const std::string dirpath = "/sys/devices/system/node/node" + numanode + "/cpu" + cpu "/cache" ///index0/size
+
+        DIR *d = opendir(dirpath.c_str());
+        struct dirent *entry = NULL;
+
+        std::vector<std::string> cachelevels;
+
+        while( (entry = readdir(d)) != NULL ) {
+          if( strncmp(entry->d_name, "index", 5) == 0) {
+            cachelevels.push_back(entry->d_name);
+          }
         }
+
+        char buf[4096];
+
+        cacheSizes.reserve(cachelevels.size());
+
+        std::string fpathstr = dirpath;
+        for( auto cache : caches ) {
+          const std::string fpath = dirpath + "/" + caches + "/size";
+          FILE* fs = fopen(fpathstr.c_str(), "r");
+
+          // meminfo's first line is '\n'
+          // need to preform 2 reads
+          //
+          fgets(buf, sizeof(buf), fs);
+          fclose(fs);
+
+          std::string cache_sz(buf);
+          cacheSizes.push_back(cache_sz);
+        }
+
+      }
 
       // >>>>>>
       // PUBLIC
       // <<<<<<
       //
       public:
-        static const CpuDescription compile() {
-          CpuDescription toret;
+        static std::vector<CpuDescription> compile() {
+          CpuInfo::cpuinfo_online(cpusonline);
+          CpuInfo::cpuinfo_summary(res);
+
+          CpuDescription toret(res);
           return toret;
         }
 
@@ -321,7 +357,9 @@ struct NumaTopologyDescription {
 
       const std::vector<std::string> numaidstrs = NumaDescriber::getNodes();
 
+      std::vector<CpuDescription> cpudescs = CpuDescription::compile();
       NumaNodeTopology topo;
+
       for(auto numaidstr : numaidstrs) {
 
         const NumaDescriber desc = NumaDescriber::compile(numaidstr);
@@ -350,8 +388,10 @@ struct NumaTopologyDescription {
           inf->set_l2cache(desc.cores[i].l2cache);
           inf->set_nprocessingunits(desc.cores[i].nprocessingunits);
           inf->set_mhz(desc.cores[i].mhz);
-        }
-       
+
+          std::vector<std::string> cacheSizes = 
+            CpuDescription::getCacheSizes(numaidstr, std::itos(i));
+
       }
 
       return topo;
