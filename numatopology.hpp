@@ -15,6 +15,7 @@
 #include <regex>
 
 #include "pb/numa.pb.h"
+#include "cpuinfo.hpp"
 
 // minl = UINT_MAX
 // find minl
@@ -227,17 +228,72 @@ struct NumaDescriber {
       // <<<<<<<
       //
       private:
+        std::vector<CpuInfo::kv_tuple_vector> res;
+        std::vector<uint8_t> cpusonline;
+
+        CpuDescription() {
+          CpuInfo::cpuinfo_online(cpusonline);
+          CpuInfo::cpuinfo_summary(res);
+
+          for(auto kvvec : res) {
+            for(auto kv : kvvec) {
+              if( std::get<0>(kv) == "processor") {
+                id = std::stoi(std::get<1>(kv));
+              }
+              else if( std::get<0>(kv) == "physical id") {
+                physicalid = std::stoi(std::get<1>(kv));
+              }
+              else if( std::get<0>(kv) == "core id") {
+                coreid = std::stoi(std::get<1>(kv));
+              }
+              else if( std::get<0>(kv) == "cpu cores") {
+                nprocessingunits = std::stoi(std::get<1>(kv));
+              }
+              else if( std::get<0>(kv) == "cpu family") {
+                cpu_family = std::stoi(std::get<1>(kv));
+              }
+              else if( std::get<0>(kv) == "cache size") {
+                l1cache = std::stoi(std::get<1>(kv));
+              }
+              else if( std::get<0>(kv) == "cpu MHz") {
+                mhz = std::stof(std::get<1>(kv));
+              }
+              else if( std::get<0>(kv) == "model name") {
+                model_name = std::get<1>(kv); 
+              }
+              else if( std::get<0>(kv) == "flags") {
+                vendor_custom = std::get<1>(kv);
+              }
+              else if( std::get<0>(kv) == "vendor_id") {
+                vendor_id = std::get<1>(kv);
+              }
+              else if( std::get<0>(kv) == "fpu") {
+                fpu = std::stoi(std::get<1>(kv)) ? true : false;
+              }
+             
+              
+              std::cout << "*" << std::get<0>(kv) << '\t' << std::get<1>(kv) << std::endl;
+            }
+          }
+
+          "/sys/devices/system/node/node0/cpu0/cache/index0/size"
+        }
 
       // >>>>>>
       // PUBLIC
       // <<<<<<
       //
       public:
+        static const CpuDescription compile() {
+          CpuDescription toret;
+          return toret;
+        }
 
-      uint32_t id, l1cache, l2cache, nprocessingunits;
+      uint32_t id, l1cache, l2cache, nprocessingunits, coreid, physicalid, cpu_family;
+      bool fpu;
       float mhz;
 
-      std::string model_name, vendor_custom;
+      std::string model_name, vendor_custom, vendor_id;
     
       /* static CpuDescription compile() { } */
 
