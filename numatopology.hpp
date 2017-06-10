@@ -81,6 +81,8 @@ struct NumaDescriber {
     return toret;
   } 
 
+ public:
+
   static inline int parseOSFile(
     const std::string &os_file,
     std::vector<uint32_t> &indices) {
@@ -183,7 +185,8 @@ struct NumaDescriber {
       //
       {
         fpathstr = (fpath + "/" + nodeidstr + "/distance");
-        std::vector<uint32_t> uintdists = parseOSFile(fpathstr);
+        std::vector<uint32_t> uintdists;
+        parseOSFile(fpathstr, uintdists);
 
         for(std::size_t i = 0; i < uintdists.size(); i++) {
           distances.push_back( NORMALIZE_LATENCY((float)uintdists) );
@@ -273,43 +276,28 @@ struct NumaDescriber {
 
       }
 
+      // returns cache sizes in the order provided by:
+      // /sys/devices/system/node/nodeM/cpuN/cache/indexO/size
+      //
       static void getCacheSizes(
         const std::string &numanode,
         const std::string &cpu,
-        std::vector<std::string> &cacheSizes) {
+        std::vector<uint32_t> &cacheSizes) {
 
-        const std::string dirpath = "/sys/devices/system/node/node" + numanode + "/cpu" + cpu "/cache" ///index0/size
+        const std::string dirpath = 
+          "/sys/devices/system/node/node" + numanode + "/cpu" + cpu + "/cache"; ///index0/size
 
         DIR *d = opendir(dirpath.c_str());
         struct dirent *entry = NULL;
 
-        std::vector<std::string> cachelevels;
-
         while( (entry = readdir(d)) != NULL ) {
           if( strncmp(entry->d_name, "index", 5) == 0) {
-            cachelevels.push_back(entry->d_name);
+            std::string cache_level(entry->d_name);
+    
+            const std::string fpath = dirpath + "/" + cache_level + "/size";
+            NumaDescriber::parseOSFile(fpath, cacheSizes);
           }
         }
-
-        char buf[4096];
-
-        cacheSizes.reserve(cachelevels.size());
-
-        std::string fpathstr = dirpath;
-        for( auto cache : caches ) {
-          const std::string fpath = dirpath + "/" + caches + "/size";
-          FILE* fs = fopen(fpathstr.c_str(), "r");
-
-          // meminfo's first line is '\n'
-          // need to preform 2 reads
-          //
-          fgets(buf, sizeof(buf), fs);
-          fclose(fs);
-
-          std::string cache_sz(buf);
-          cacheSizes.push_back(cache_sz);
-        }
-
       }
 
       // >>>>>>
@@ -325,7 +313,8 @@ struct NumaDescriber {
           return toret;
         }
 
-      uint32_t id, l1cache, l2cache, nprocessingunits, coreid, physicalid, cpu_family;
+      uint32_t id, nprocessingunits, coreid, physicalid, cpu_family;
+      std::vector<uint32_t> caches
       bool fpu;
       float mhz;
 

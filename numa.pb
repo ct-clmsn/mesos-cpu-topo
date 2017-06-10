@@ -2,12 +2,11 @@ package numa;
 
 message CpuCoreInfo {
   required uint32 id = 1;
-  required uint32 l1cache = 2;
-  required uint32 l2cache = 3;
-  required uint32 processingunits = 4;
-  optional string model_name = 5;
-  optional float mhz = 6;
-  optional string vendor_custom = 7;
+  required repeated uint32 cache_sizes = 2;
+  required uint32 processingunits = 3;
+  optional string model_name = 4;
+  optional float mhz = 5;
+  optional repeated string vendor_custom = 6;
 }
 
 message NumaNodeInfo {
