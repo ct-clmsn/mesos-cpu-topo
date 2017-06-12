@@ -40,27 +40,9 @@ namespace mesos {
     namespace hardware {
       namespace topology {
 
+struct utils {
 
-struct NumaDescriber {
-
-  // >>>>>>>
-  // PRIVATE
-  // <<<<<<<
-  //
-  private:
-
-    NumaDescriber(
-      const std::string &numaidstr) :
-        id(getUint32FromStdString(numaidstr));
-        latencies(NumaDescriber::getNodeDistances(numaidstr)),
-        interconnect(NumaDescriber::getNodeInterconnect(numaidstr)),
-        memory(NumaDescriber::getNodeDistances(numaidstr)) {
-
-      for(auto numanode : 
-      auto cpuinfo = 
-    }
-
-  static std::uint32_t getUint32FromStdString(
+ static std::uint32_t getUint32FromStdString(
     const std::string &numidstr) {
 
     std::regex e("[0-9]+");
@@ -71,17 +53,9 @@ struct NumaDescriber {
         return strtoull(m[0].str().c_str(), NULL, 0);
       }
     }
-    
+
     return 0;
   }
-
-  static std::vector<std::string> getNodeInterconnect(
-    const std::string &numidstr) {
-    std::vector<std::string> toret = { "pci-e" };
-    return toret;
-  } 
-
- public:
 
   static inline int parseOSFile(
     const std::string &os_file,
@@ -147,182 +121,190 @@ struct NumaDescriber {
     return 1;
   }
 
+};
 
-  // >>>>>>
-  // PUBLIC
-  // <<<<<<
-  //
+struct NumaDescriber {
+
+  private:
+
+  NumaDescriber(
+    const std::string &numaidstr) :
+      id(utils::getUint32FromStdString(numaidstr));
+      latencies(NumaDescriber::getNodeDistances(numaidstr)),
+      interconnect(NumaDescriber::getNodeInterconnect(numaidstr)),
+      memory(NumaDescriber::getNodeDistances(numaidstr)) {
+  }
+
   public:
 
-    static std::vector<std::string> getNodes() {
+  static std::vector<std::string> getNodeInterconnect(
+    const std::string &numidstr) {
+    std::vector<std::string> toret = { "pci-e" };
+    return toret;
+  }
 
-      std::vector<std::string> nodelist;
-      const char* fpath = "/sys/devices/system/node/";
 
-      DIR *d = opendir(fpath);
+  static std::vector<std::string> getNodes() {
+
+    std::vector<std::string> nodelist;
+    const char* fpath = "/sys/devices/system/node/";
+
+    DIR *d = opendir(fpath);
+    struct dirent *entry = NULL;
+
+    while( (entry = readdir(d)) != NULL ) {
+      if( strncmp(entry->d_name, "node", 4) == 0) {
+        nodelist.push_back(entry->d_name);
+      }
+    }
+
+    return nodelist;
+  }
+
+  static std::vector<float> getNodeDistances(
+    const std::string &nodeidstr) {
+
+    std::vector<float> distances;
+    const std::string fpath = "/sys/devices/system/node";
+
+    std::string fpathstr;
+    const float min = FLT_MAX, max = FLT_MIN;
+    #define NORMALIZE_LATENCY(d) ((d)/(min))
+
+    // parse a set of elements in a file
+    //
+    {
+      fpathstr = (fpath + "/" + nodeidstr + "/distance");
+      std::vector<uint32_t> uintdists;
+      utils::parseOSFile(fpathstr, uintdists);
+
+      for(std::size_t i = 0; i < uintdists.size(); i++) {
+        distances.push_back( NORMALIZE_LATENCY((float)uintdists) );
+      }
+
+    }
+
+    return distances;
+  }
+
+  static std::uint32_t getNodeMem(
+    const std::string> &nodeidstr) {
+
+    std::vector<uint64_t> mem;
+    const std::string fpath = "/sys/devices/system/node";
+
+    std::string fpathstr;
+    const float min = FLT_MAX, max = FLT_MIN;
+    unsigned distance = 0;
+    char *end = NULL;
+    char buf[4096];
+
+    fpathstr = (fpath + "/" + nodeidstr + "/meminfo");
+    FILE* fs = fopen(fpathstr.c_str(), "r");
+
+    // meminfo's first line is '\n'
+    // need to preform 2 reads
+    //
+    fgets(buf, sizeof(buf), fs);
+    fgets(buf, sizeof(buf), fs);
+    fclose(fs);
+
+    const std::string bufstr(buf);
+    auto spos = bufstr.find(":");
+    if(spos == std::string::npos) { continue; }
+
+    auto mem_bytes_str = bufstr.substr(spos);
+    return getUint32FromStdString(mem_bytes_str);
+  }
+
+  struct CpuDescription {
+
+    private:
+
+    std::vector<CpuInfo::kv_tuple_vector> res;
+    std::vector<uint8_t> cpusonline;
+
+    CpuDescription(const std::vector<CpuInfo::kv_tuple_vector>& res) {
+      for(auto kvvec : res) {
+        for(auto kv : kvvec) {
+          if( std::get<0>(kv) == "processor") {
+            id = std::stoi(std::get<1>(kv));
+          }
+          else if( std::get<0>(kv) == "physical id") {
+            physicalid = std::stoi(std::get<1>(kv));
+          }
+          else if( std::get<0>(kv) == "core id") {
+            coreid = std::stoi(std::get<1>(kv));
+          }
+          else if( std::get<0>(kv) == "cpu cores") {
+            nprocessingunits = std::stoi(std::get<1>(kv));
+          }
+          else if( std::get<0>(kv) == "cpu family") {
+            cpu_family = std::stoi(std::get<1>(kv));
+          }
+          else if( std::get<0>(kv) == "cpu MHz") {
+            mhz = std::stof(std::get<1>(kv));
+          }
+          else if( std::get<0>(kv) == "model name") {
+            model_name = std::get<1>(kv); 
+          }
+          else if( std::get<0>(kv) == "flags") {
+            vendor_custom = std::get<1>(kv);
+          }
+          else if( std::get<0>(kv) == "vendor_id") {
+            vendor_id = std::get<1>(kv);
+          }
+          else if( std::get<0>(kv) == "fpu") {
+            fpu = std::stoi(std::get<1>(kv)) ? true : false;
+          }
+        }
+      }
+
+    }
+
+    // returns cache sizes in the order provided by:
+    // /sys/devices/system/node/nodeM/cpuN/cache/indexO/size
+    //
+    static void getCacheSizes(
+      const std::string &numanode,
+      const std::string &cpu,
+      std::vector<uint32_t> &cacheSizes) {
+
+      const std::string dirpath = 
+        "/sys/devices/system/node/node" + numanode + "/cpu" + cpu + "/cache"; ///index0/size
+
+      DIR *d = opendir(dirpath.c_str());
       struct dirent *entry = NULL;
 
       while( (entry = readdir(d)) != NULL ) {
-        if( strncmp(entry->d_name, "node", 4) == 0) {
-          nodelist.push_back(entry->d_name);
-        }
-      }
-
-      return nodelist;
-    }
-
-    static std::vector<float> getNodeDistances(
-      const std::string &nodeidstr) {
-
-      std::vector<float> distances;
-      const std::string fpath = "/sys/devices/system/node";
-
-      std::string fpathstr;
-      const float min = FLT_MAX, max = FLT_MIN;
-      #define NORMALIZE_LATENCY(d) ((d)/(min))
-
-      // parse a set of elements in a file
-      //
-      {
-        fpathstr = (fpath + "/" + nodeidstr + "/distance");
-        std::vector<uint32_t> uintdists;
-        parseOSFile(fpathstr, uintdists);
-
-        for(std::size_t i = 0; i < uintdists.size(); i++) {
-          distances.push_back( NORMALIZE_LATENCY((float)uintdists) );
-        }
-
-      }
-
-      return distances;
-    }
-
-    static std::uint32_t getNodeMem(
-      const std::string> &nodeidstr) {
-
-      std::vector<uint64_t> mem;
-      const std::string fpath = "/sys/devices/system/node";
-
-      std::string fpathstr;
-      const float min = FLT_MAX, max = FLT_MIN;
-      unsigned distance = 0;
-      char *end = NULL;
-      char buf[4096];
-
-      fpathstr = (fpath + "/" + nodeidstr + "/meminfo");
-      FILE* fs = fopen(fpathstr.c_str(), "r");
-
-      // meminfo's first line is '\n'
-      // need to preform 2 reads
-      //
-      fgets(buf, sizeof(buf), fs);
-      fgets(buf, sizeof(buf), fs);
-      fclose(fs);
-
-      const std::string bufstr(buf);
-      auto spos = bufstr.find(":");
-      if(spos == std::string::npos) { continue; }
-
-      auto mem_bytes_str = bufstr.substr(spos);
-      return getUint32FromStdString(mem_bytes_str);
-    }
-
-    struct CpuDescription {
-
-      // >>>>>>>
-      // PRIVATE 
-      // <<<<<<<
-      //
-      private:
-        std::vector<CpuInfo::kv_tuple_vector> res;
-        std::vector<uint8_t> cpusonline;
-
-        CpuDescription(const std::vector<CpuInfo::kv_tuple_vector>& res) {
-          for(auto kvvec : res) {
-            for(auto kv : kvvec) {
-              if( std::get<0>(kv) == "processor") {
-                id = std::stoi(std::get<1>(kv));
-              }
-              else if( std::get<0>(kv) == "physical id") {
-                physicalid = std::stoi(std::get<1>(kv));
-              }
-              else if( std::get<0>(kv) == "core id") {
-                coreid = std::stoi(std::get<1>(kv));
-              }
-              else if( std::get<0>(kv) == "cpu cores") {
-                nprocessingunits = std::stoi(std::get<1>(kv));
-              }
-              else if( std::get<0>(kv) == "cpu family") {
-                cpu_family = std::stoi(std::get<1>(kv));
-              }
-              else if( std::get<0>(kv) == "cpu MHz") {
-                mhz = std::stof(std::get<1>(kv));
-              }
-              else if( std::get<0>(kv) == "model name") {
-                model_name = std::get<1>(kv); 
-              }
-              else if( std::get<0>(kv) == "flags") {
-                vendor_custom = std::get<1>(kv);
-              }
-              else if( std::get<0>(kv) == "vendor_id") {
-                vendor_id = std::get<1>(kv);
-              }
-              else if( std::get<0>(kv) == "fpu") {
-                fpu = std::stoi(std::get<1>(kv)) ? true : false;
-              }
-              
-            }
-          }
-
-      }
-
-      // returns cache sizes in the order provided by:
-      // /sys/devices/system/node/nodeM/cpuN/cache/indexO/size
-      //
-      static void getCacheSizes(
-        const std::string &numanode,
-        const std::string &cpu,
-        std::vector<uint32_t> &cacheSizes) {
-
-        const std::string dirpath = 
-          "/sys/devices/system/node/node" + numanode + "/cpu" + cpu + "/cache"; ///index0/size
-
-        DIR *d = opendir(dirpath.c_str());
-        struct dirent *entry = NULL;
-
-        while( (entry = readdir(d)) != NULL ) {
-          if( strncmp(entry->d_name, "index", 5) == 0) {
-            std::string cache_level(entry->d_name);
+        if( strncmp(entry->d_name, "index", 5) == 0) {
+          std::string cache_level(entry->d_name);
     
-            const std::string fpath = dirpath + "/" + cache_level + "/size";
-            NumaDescriber::parseOSFile(fpath, cacheSizes);
-          }
+          const std::string fpath = dirpath + "/" + cache_level + "/size";
+          utils::parseOSFile(fpath, cacheSizes);
         }
       }
+    }
 
-      // >>>>>>
-      // PUBLIC
-      // <<<<<<
-      //
-      public:
-        static std::vector<CpuDescription> compile() {
-          CpuInfo::cpuinfo_online(cpusonline);
-          CpuInfo::cpuinfo_summary(res);
+    public:
 
-          CpuDescription toret(res);
-          return toret;
-        }
+    static std::vector<CpuDescription> compile() {
+      CpuInfo::cpuinfo_online(cpusonline);
+      CpuInfo::cpuinfo_summary(res);
 
-      uint32_t id, nprocessingunits, coreid, physicalid, cpu_family;
-      std::vector<uint32_t> caches
-      bool fpu;
-      float mhz;
+      CpuDescription toret(res);
+      return toret;
+    }
 
-      std::string model_name, vendor_custom, vendor_id;
+    uint32_t id, nprocessingunits, coreid, physicalid, cpu_family;
+    std::vector<uint32_t> caches;
+    bool fpu;
+    float mhz;
+
+    std::string model_name, vendor_custom, vendor_id;
     
-      /* static CpuDescription compile() { } */
-
-    }; // end struct CpuDescription
+    /* static CpuDescription compile() { } */
+  }; // end struct CpuDescription
 
   std::vector<float> latencies;
   std::vector<std::string> interconnect;
