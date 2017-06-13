@@ -272,14 +272,14 @@ struct NumaDescriber {
     
     }; // end struct CpuDescription
 
-    struct NumaNode {
+    struct NumaNodeInfo {
 
       std::vector<float> latencies;
       std::vector<std::string> interconnect;
       std::vector<CpuDescription> cores;
       std::uint32_t id;
 
-      NumaNode(const std::string &numaidstr) :
+      NumaNodeInfo(const std::string &numaidstr) :
         id(utils::getUint32FromStdString(numaidstr));
         latencies(NumaDescriber::getNodeDistances(numaidstr)),
         interconnect(NumaDescriber::getNodeInterconnect(numaidstr)) {
@@ -318,12 +318,12 @@ struct NumaDescriber {
 
       public:
 
-      static const NumaNode create(const std::string &numaidstr) {
+      static const NumaNodeInfo create(const std::string &numaidstr) {
         std::vector<CpuDescription> cpudescs = CpuDescription::create();
 
-        NumaNode ndesc(numaidstr);
+        NumaNodeInfo ndesc(numaidstr);
         for(auto cpudesc : cpudescs) {
-          if(NumaNode::getCacheSizes(ndesc, cpudesc, cache_sizes)) {
+          if(NumaNodeInfo::getCacheSizes(ndesc, cpudesc, cache_sizes)) {
             ndesc.push_back(cpudesc);
           }
         }
@@ -349,14 +349,14 @@ struct NumaDescriber {
       NumaDescription desc(numaidstrs.size());
 
       for(auto numaidstr : numaidstrs) {
-        NumaNode node = NumaNode::create(numaidstr);
+        NumaNodeInfo node = NumaNodeInfo::create(numaidstr);
         desc.nodes.push_back(node);
       }
 
       return desc;
     }
 
-    std::vector<NumaNode> nodes;
+    std::vector<NumaNodeInfo> nodes;
 
   };
    
@@ -370,31 +370,31 @@ struct NumaDescriber {
 struct NumaTopologyDescription {
   private:
 
-    static NumaNodeTopology create() {
+    static NumaNodeInfoTopology create() {
 
-      NumaNodeTopology topo;
+      NumaNodeInfoTopology topo;
 
       const NumaDescription numadesc = NumaDescriber::create();
 
       for(auto numanode : numadesc.nodes) {
 
-        numa::NumaNodeInfo *n = topo.add_nodes();
+        numa::NumaNodeInfoInfo *n = topo.add_nodes();
         n->set_id(numanode.id);
 
         for(uint32_t i = 0; i < numanode.lantencies.size(); ++i) {
-          numa::NumaNodeInfo_NumaLatencies *l = n.add_latencies();
+          numa::NumaNodeInfoInfo_NumaLatencies *l = n.add_latencies();
           l->set_id(i);
           l->set_value(numanode.latencies[i]);
         }
 
         for(uint32_t i = 0; i < numanode.interconnect(); ++i) {
-          numa::NumaNodeInfo_NumaInterconnect *inter = topo.add_interconnect()
+          numa::NumaNodeInfoInfo_NumaInterconnect *inter = topo.add_interconnect()
           inter->set_id(i);
           inter->set_vendor_custom(numanode.interconnect[i]);
         }
 
         for(uint32_t i = 0; i < numanode.cores.size(); ++i) {
-          numa::NumaNodeInfo *inf = topo.add_cores();
+          numa::NumaNodeInfoInfo *inf = topo.add_cores();
           inf->set_id(numanode.cores[i].id);
           inf->set_model_name(numanode.cores[i].model_name);
           inf->set_vendor_custom(numanode.cores[i].vendor_custom);
@@ -413,7 +413,7 @@ struct NumaTopologyDescription {
 
   public:
 
-    static NumaNodeTopology create(
+    static NumaTopology create(
       const NumaDescriber& desc) {
       return NumaTopologyDescription::create(desc);
     }
