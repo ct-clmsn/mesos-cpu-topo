@@ -1,12 +1,13 @@
+syntax = "proto3";
 package numa;
 
 message CpuCoreInfo {
-  required uint32 id = 1;
-  required repeated uint32 cache_sizes = 2;
-  required uint32 processingunits = 3;
-  optional string model_name = 4;
-  optional float mhz = 5;
-  optional repeated string vendor_custom = 6;
+  uint32 id = 1;
+  repeated uint32 cache_sizes = 2;
+  uint32 processingunits = 3;
+  string model_name = 4;
+  float mhz = 5;
+  repeated string vendor_custom = 6;
 }
 
 message NumaNodeInfo {
@@ -16,15 +17,14 @@ message NumaNodeInfo {
   }
 
   message NumaInterconnect {
-    required uint32 id = 1;
-    optional string vendor_custom = 2;
+    uint32 id = 1;
+    string vendor_custom = 2;
   }
 
-  required uint32 id = 1;
+  uint32 id = 1;
   repeated NumaLatencies latencies = 2;
   repeated NumaInterconnect interconnect = 3;
-  required uint32 l3cache = 4; // memory?
-  repeated CpuCoreInfo cores = 5;
+  repeated CpuCoreInfo cores = 4;
 }
 
 message NumaNodeTopology {
