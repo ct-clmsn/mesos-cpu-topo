@@ -128,9 +128,36 @@ struct NumaDescriber {
 
   public:
 
+
   static std::vector<std::string> getNodeInterconnect(
     const std::string &numidstr) {
-    std::vector<std::string> toret = { "pci-e" };
+
+    std::set<std::string> toret;
+    toret.add("clockevents");
+    toret.add("clocksource");
+    toret.add("container");
+    toret.add("cpu");
+    toret.add("machinecheck");
+    toret.add("memory");
+    toret.add("node");
+    toret.add("mmc");
+    toret.add("platform");
+    toret.add("virtio");
+    toret.add("workqueue");
+    toret.add("xen");
+    toret.add("xen-backend");
+
+    const char* fpath = "/sys/bus/";
+    DIR *d = opendir(fpath);
+    struct dirent *entry = NULL;
+
+    while( (entry = readdir(d)) != NULL ) {
+      const std::string bname(entry->d_name);
+      if( toret.find(bname) != std::end(toret) ) {
+        nodelist.push_back(entry->d_name);
+      }
+    }
+
     return toret;
   }
 
