@@ -140,7 +140,7 @@ struct NumaDescriber {
     while( (entry = readdir(d)) != NULL ) {
       const std::string bname(entry->d_name);
       if( toret.find(bname) != std::end(toret) ) {
-        nodelist.add(bname);
+        toret.insert(bname);
       }
     }
 
@@ -151,19 +151,19 @@ struct NumaDescriber {
     const std::string &numidstr) {
 
     std::set<std::string> toret;
-    toret.add("clockevents");
-    toret.add("clocksource");
-    toret.add("container");
-    toret.add("cpu");
-    toret.add("machinecheck");
-    toret.add("memory");
-    toret.add("node");
-    toret.add("mmc");
-    toret.add("platform");
-    toret.add("virtio");
-    toret.add("workqueue");
-    toret.add("xen");
-    toret.add("xen-backend");
+    toret.insert("clockevents");
+    toret.insert("clocksource");
+    toret.insert("container");
+    toret.insert("cpu");
+    toret.insert("machinecheck");
+    toret.insert("memory");
+    toret.insert("node");
+    toret.insert("mmc");
+    toret.insert("platform");
+    toret.insert("virtio");
+    toret.insert("workqueue");
+    toret.insert("xen");
+    toret.insert("xen-backend");
 
     const char* fpath = "/sys/bus/";
     DIR *d = opendir(fpath);
@@ -172,7 +172,7 @@ struct NumaDescriber {
     while( (entry = readdir(d)) != NULL ) {
       const std::string bname(entry->d_name);
       if( toret.find(bname) != std::end(toret) ) {
-        nodelist.add(bname);
+        toret.insert(bname);
       }
     }
 
@@ -445,35 +445,41 @@ struct NumaDescriber {
 
 };
 
-/*
+
 struct NumaTopologyDescription {
   private:
 
-    static NumaTopologyDescription create() {
+    static numa::NumaNodeTopology create() {
 
-      NumaTopologyDescription topo;
+      numa::NumaNodeTopology topo;
 
-      const NumaDescription numadesc = NumaDescriber::create();
+      const NumaDescriber::NumaDescription numadesc = NumaDescriber::create();
 
       for(auto numanode : numadesc.nodes) {
 
-        numa::NumaNodeInfoInfo *n = topo.add_nodes();
+        numa::NumaNodeInfo *n = topo.add_nodes();
         n->set_id(numanode.id);
 
-        for(uint32_t i = 0; i < numanode.lantencies.size(); ++i) {
-          numa::NumaNodeInfoInfo_NumaLatencies *l = n.add_latencies();
+        for(uint32_t i = 0; i < numanode.latencies.size(); ++i) {
+          numa::NumaNodeInfo_NumaLatency *l = n->add_latencies();
           l->set_id(i);
           l->set_value(numanode.latencies[i]);
         }
 
-        for(uint32_t i = 0; i < numanode.interconnect(); ++i) {
-          numa::NumaNodeInfoInfo_NumaInterconnect *inter = topo.add_interconnect()
+        for(uint32_t i = 0; i < numanode.interconnect.size(); ++i) {
+          numa::NumaNodeInfo_NumaInterconnect *inter = topo.add_interconnect();
           inter->set_id(i);
-          inter->set_vendor_custom(numanode.interconnect[i]);
+          inter->set_name(numanode.interconnect[i]);
+        }
+
+        for(uint32_t i = 0; i < numanode.bus.size(); ++i) {
+          numa::NumaNodeInfo_NumaBus *bus = topo.get_bus();
+          bus->set_id(i);
+          bus->set_name(numdanode.bus[i]);
         }
 
         for(uint32_t i = 0; i < numanode.cores.size(); ++i) {
-          numa::NumaNodeInfoInfo *inf = topo.add_cores();
+          numa::NumaNodeInfo *inf = topo.add_cores();
           inf->set_id(numanode.cores[i].id);
           inf->set_model_name(numanode.cores[i].model_name);
           inf->set_vendor_custom(numanode.cores[i].vendor_custom);
@@ -492,11 +498,10 @@ struct NumaTopologyDescription {
 
   public:
 
-    static NumaTopology create() {
+    static numa::NumaNodeTopology create() {
       return NumaTopologyDescription::create();
     }
 };
-*/
 
 } // namespace topology
 } // namespace hardware

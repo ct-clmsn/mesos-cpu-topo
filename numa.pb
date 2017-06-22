@@ -11,9 +11,9 @@ message CpuCoreInfo {
 }
 
 message NumaNodeInfo {
-  message NumaLatencies {
-    repeated uint32 id = 1;
-    repeated float value = 2;
+  message NumaLatency {
+    uint32 id = 1;
+    float value = 2;
   }
 
   message NumaInterconnect {
@@ -29,7 +29,7 @@ message NumaNodeInfo {
   }
 
   uint32 id = 1;
-  repeated NumaLatencies latencies = 2;
+  repeated NumaLatency latencies = 2;
   repeated NumaInterconnect interconnect = 3;
   repeated CpuCoreInfo cores = 4;
 }
