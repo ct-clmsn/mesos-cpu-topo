@@ -18,7 +18,14 @@ message NumaNodeInfo {
 
   message NumaInterconnect {
     uint32 id = 1;
-    string vendor_custom = 2;
+    string name = 2;
+    string vendor_custom = 3;
+  }
+
+  message NumaBus {
+    uint32 id = 1;
+    string name = 2;
+    string vendor_custom = 3;
   }
 
   uint32 id = 1;
