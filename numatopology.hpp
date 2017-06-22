@@ -447,9 +447,10 @@ struct NumaDescriber {
 
 
 struct NumaTopologyDescription {
+
   private:
 
-    static numa::NumaNodeTopology create() {
+    static numa::NumaNodeTopology create_() {
 
       numa::NumaNodeTopology topo;
 
@@ -467,30 +468,32 @@ struct NumaTopologyDescription {
         }
 
         for(uint32_t i = 0; i < numanode.interconnect.size(); ++i) {
-          numa::NumaNodeInfo_NumaInterconnect *inter = topo.add_interconnect();
+          numa::NumaNodeInfo_NumaInterconnect *inter = n->add_interconnect();
           inter->set_id(i);
           inter->set_name(numanode.interconnect[i]);
         }
 
         for(uint32_t i = 0; i < numanode.bus.size(); ++i) {
-          numa::NumaNodeInfo_NumaBus *bus = topo.get_bus();
+          numa::NumaNodeInfo_NumaBus *bus = n->add_bus();
           bus->set_id(i);
-          bus->set_name(numdanode.bus[i]);
+          bus->set_name(numanode.bus[i]);
         }
 
         for(uint32_t i = 0; i < numanode.cores.size(); ++i) {
-          numa::NumaNodeInfo *inf = topo.add_cores();
+          numa::CpuCoreInfo *inf = n->add_cores();
           inf->set_id(numanode.cores[i].id);
           inf->set_model_name(numanode.cores[i].model_name);
           inf->set_vendor_custom(numanode.cores[i].vendor_custom);
-          inf->set_nprocessingunits(numanode.cores[i].nprocessingunits);
+          inf->set_processingunits(numanode.cores[i].nprocessingunits);
           inf->set_mhz(numanode.cores[i].mhz);
 
           // TODO this is wonky fix.
-          for(auto j = 0; j < nuamnode.cores[i].caches.size(); ++j) {
-            inf->set_caches(numanode.cores[i].caches[j]);
+          const auto cache_size_count = numanode.cores[i].caches.size();
+          inf->add_cache_sizes(cache_size_count);
+          for(auto j = 0; j < numanode.cores[i].caches.size(); ++j) {
+            inf->set_cache_sizes(i, numanode.cores[i].caches[j]);
           }
-
+        }
       }
 
       return topo;
@@ -499,7 +502,7 @@ struct NumaTopologyDescription {
   public:
 
     static numa::NumaNodeTopology create() {
-      return NumaTopologyDescription::create();
+      return NumaTopologyDescription::create_();
     }
 };
 

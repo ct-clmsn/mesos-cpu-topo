@@ -7,7 +7,7 @@ message CpuCoreInfo {
   uint32 processingunits = 3;
   string model_name = 4;
   float mhz = 5;
-  repeated string vendor_custom = 6;
+  string vendor_custom = 6;
 }
 
 message NumaNodeInfo {
@@ -30,8 +30,9 @@ message NumaNodeInfo {
 
   uint32 id = 1;
   repeated NumaLatency latencies = 2;
-  repeated NumaInterconnect interconnect = 3;
-  repeated CpuCoreInfo cores = 4;
+  repeated NumaBus bus = 3;
+  repeated NumaInterconnect interconnect = 4;
+  repeated CpuCoreInfo cores = 5;
 }
 
 message NumaNodeTopology {
