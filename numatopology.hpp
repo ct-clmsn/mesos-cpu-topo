@@ -128,8 +128,26 @@ struct NumaDescriber {
 
   public:
 
+  static std::set<std::string> getNodeInterconnect(
+    const std::string &numidstr) {
 
-  static std::vector<std::string> getNodeInterconnect(
+    std::set<std::string> toret;
+
+    const char* fpath = "/sys/class/net";
+    DIR *d = opendir(fpath);
+    struct dirent *entry = NULL;
+
+    while( (entry = readdir(d)) != NULL ) {
+      const std::string bname(entry->d_name);
+      if( toret.find(bname) != std::end(toret) ) {
+        nodelist.add(bname);
+      }
+    }
+
+    return toret;
+  }
+
+  static std::set<std::string> getNodeBus(
     const std::string &numidstr) {
 
     std::set<std::string> toret;
@@ -154,7 +172,7 @@ struct NumaDescriber {
     while( (entry = readdir(d)) != NULL ) {
       const std::string bname(entry->d_name);
       if( toret.find(bname) != std::end(toret) ) {
-        nodelist.push_back(entry->d_name);
+        nodelist.add(bname);
       }
     }
 
@@ -309,6 +327,7 @@ struct NumaDescriber {
 
       std::vector<float> latencies;
       std::vector<std::string> interconnect;
+      std::vector<std::string> bus;
       std::vector<CpuDescription> cores;
       std::uint32_t mem;
       std::uint32_t id;
@@ -324,6 +343,14 @@ struct NumaDescriber {
             std::begin(dist), 
             std::end(dist), 
             std::begin(latencies));
+
+          auto nodebus = NumaDescriber::getNodeBus(numaidstr);
+          bus.reserve(nodebus.size());
+
+          std::copy(
+            std::begin(nodebus),
+            std::end(nodebus),
+            std::begin(bus));
 
           auto ic = NumaDescriber::getNodeInterconnect(numaidstr);
           interconnect.reserve(ic.size());
