@@ -19,7 +19,8 @@ message NumaNodeInfo {
   message NumaInterconnect {
     uint32 id = 1;
     string name = 2;
-    string vendor_custom = 3;
+    map<string, string> device_information = 3;
+    string vendor_custom = 4;
   }
 
   message NumaBus {
