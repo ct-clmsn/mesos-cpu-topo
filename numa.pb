@@ -10,6 +10,10 @@ message CpuCoreInfo {
   string vendor_custom = 6;
 }
 
+message PciBusDevices {
+  string device_str;
+}
+
 message NumaNodeInfo {
   message NumaLatency {
     uint32 id = 1;
@@ -33,7 +37,8 @@ message NumaNodeInfo {
   repeated NumaLatency latencies = 2;
   repeated NumaBus bus = 3;
   repeated NumaInterconnect interconnect = 4;
-  repeated CpuCoreInfo cores = 5;
+  repeated PciBusDevices devices = 5;
+  repeated CpuCoreInfo cores = 6;
 }
 
 message NumaNodeTopology {
