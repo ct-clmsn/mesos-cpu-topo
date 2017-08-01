@@ -17,6 +17,7 @@
 
 #include "include/numa.pb.pb.h"
 #include "cpuinfo.hpp"
+#include "pci.hpp"
 
 // minl = UINT_MAX
 // find minl
@@ -449,8 +450,12 @@ struct NumaDescriber {
 struct NumaTopologyDescription {
 
   private:
+    const static std::string pci_ids_path = "/usr/share/misc/pci.ids";
 
     static numa::NumaNodeTopology create_() {
+
+      pci_device_set_t dset(pci_ids_path);
+      pcibus_info(dset);
 
       numa::NumaNodeTopology topo;
 
@@ -477,6 +482,12 @@ struct NumaTopologyDescription {
           numa::NumaNodeInfo_NumaBus *bus = n->add_bus();
           bus->set_id(i);
           bus->set_name(numanode.bus[i]);
+        }
+
+        for(auto pcidata : dset.pcidata) {
+          numa::PciBusDevice *dev = n->add_devices();
+          auto devstr = pcidata();
+          dev->set_device_str(devstr);
         }
 
         for(uint32_t i = 0; i < numanode.cores.size(); ++i) {
