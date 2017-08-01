@@ -1,3 +1,8 @@
+/*
+ * file processes /proc and /sys to extact pci bus attached device
+ * information
+ *
+ */
 #ifndef __PCI_HPP__
 #define __PCI_HPP__
 
@@ -22,20 +27,33 @@ typedef uint64_t pciaddr_t;
 struct pcidata_t {
   typedef std::tuple<uint16_t, std::string> vendorinfo_t;
   typedef std::tuple<uint8_t, std::string> deviceinfo_t;
-  typedef std::tuple<uint8_t, std::string> subsystem_t;
+  typedef std::tuple<uint8_t, int, std::string> subsystem_t;
 
   vendorinfo_t vendor;
   deviceinfo_t device;
   std::vector<subsystem_t> subsystems;
 
   std::string operator()() {
-    return std::get<1>(vendor) + (std::get<1>(device).size() > 0) ? "::" + std::get<1>(device) : "";
+    auto devstr = (std::get<1>(device).size() > 0) ? "::" + std::get<1>(device) : "";
+    return std::get<1>(vendor) + devstr;
   }
 
 };
 
 struct pcidevice_t {
-  
+  uint8_t bus, dev, func;
+  uint16_t vendor, device; 
+  size_t config_size, present_size;
+
+  pcidevice_t() :
+    config_size(64), present_size(64) {
+  }
+
+  pcidevice_t(int bus_, int dev_, int func_):
+    config_size(64), present_size(64),
+    bus(bus_), dev(dev_), func(func_) { 
+  }
+
 };
 
 static std::size_t pcifile_parse(
@@ -52,7 +70,7 @@ static std::size_t pcifile_parse(
 
   if(!fs.good()) { return 0; }
 
-  while(fs.good() && std:getline(fs, line)) {
+  while(fs.good() && std::getline(fs, line)) {
     std::stringstream ss(line);
     if(line[0] == '#' || line.size() == 0 || line[0] == ' ') {
       continue;
@@ -92,7 +110,29 @@ static std::size_t pcifile_parse(
   return pcidata.size();
 }
 
-struct pci_device_set_t dset {
+static bool match_pcidata_pcidevice(
+  const pcidata_t &data,
+  const pcidevice_t &device) {
+
+  return ((std::get<0>(data.device) == device.dev) &&
+    (std::get<0>(data.vendor) == device.vendor));
+}
+
+static bool match_devicelist_device(
+  std::vector<pcidata_t> &devicelist,
+  pcidevice_t &device) {
+
+  auto itr = std::find_if(
+    std::begin(devicelist),
+    std::end(devicelist),
+    [&device](pcidata_t &devdat) {
+      return match_pcidata_pcidevice(devdat, device);
+    });
+
+  return itr == std::end(devicelist);
+}
+
+struct pci_device_set_t {
   std::string path;
   std::vector<pcidata_t> pcidata;
 
@@ -126,28 +166,6 @@ static bool get_pcidevices(std::vector<pcidevice_t> & devices) {
    f.close();
 }
 
-static bool match_pcidata_pcidevice(
-  const pcidata_t & data,
-  const pcidevice_t & device) {
-
-  return ((std::get<0>(data.device) == device.dev) &&
-    (std::get<0>(data.vendor) == device.vendor);
-}
-
-static bool match_devicelist_device(
-  std::vector<pcidata_t> & devicelist,
-  pcidevice_t & device) {
-
-  auto itr = std::find(
-    std::begin(devicelist),
-    std::end(devicelist),
-    [&device](pcidata_t & devdat) {
-      return match_pcidata_pcidevice(devdat, device);
-  });
-
-  return itr == std::end(devicelist);
-}
-
 static std::size_t pcidevice_detect(
   const std::string &pciid_file_path,
   const std::vector<pcidata_t> &pcidata,
@@ -161,7 +179,7 @@ static std::size_t pcidevice_detect(
     return static_cast<std::size_t>(0);
   }
 
-  const std::size devicelist_count = pcifile_parse(pciid_file_path, devicelist);
+  const std::size_t devicelist_count = pcifile_parse(pciid_file_path, devicelist);
   if(devicelist_count < 1) { return devicelist_count; }
 
   std::vector<bool> completion;
