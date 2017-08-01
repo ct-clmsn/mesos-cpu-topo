@@ -10,7 +10,7 @@ message CpuCoreInfo {
   string vendor_custom = 6;
 }
 
-message PciBusDevices {
+message PciBusDevice {
   string device_str;
 }
 
@@ -37,7 +37,7 @@ message NumaNodeInfo {
   repeated NumaLatency latencies = 2;
   repeated NumaBus bus = 3;
   repeated NumaInterconnect interconnect = 4;
-  repeated PciBusDevices devices = 5;
+  repeated PciBusDevice devices = 5;
   repeated CpuCoreInfo cores = 6;
 }
 
